@@ -29,13 +29,14 @@
         [Fact]
         public async Task TestClassWithEmptyDocumentationAsync()
         {
-            var gen = new DocumentationRuleTestSampleCodeBuilder();
-            gen.WriteLine(@"/// <summary>");
-            gen.WriteLine(@"/// </summary>");
-            gen.WriteClassStart("TestClass", DocumentationOptions.OmitSampleDocumentation, ExpectedResult.Diagnostic, "public");
-            gen.WriteBlockEnd();
+            string source = string.Format(@"/// <summary>
+/// </summary>
+public class
+TestClass
+{{
+}}");
 
-            await this.VerifyCSharpDiagnosticAsync(gen, DiagnosticId, CancellationToken.None).ConfigureAwait(false);
+            await this.VerifyCSharpDiagnosticAsync(source, this.CSharpDiagnostic(DiagnosticId).WithLocation(4, 1), CancellationToken.None).ConfigureAwait(false);
         }
 
         [Theory]
@@ -44,11 +45,28 @@
         [InlineData(DocumentationOptions.OmitSampleDocumentation, new[] { "internal" }, DiagnosticIdInternal)]
         public async Task TestClassAsync(DocumentationOptions options, string[] modifiers, string expectedDiagnosticId)
         {
-            var gen = new DocumentationRuleTestSampleCodeBuilder();
-            gen.WriteClassStart("TestClass", options, ExpectedResult.Diagnostic, modifiers);
-            gen.WriteBlockEnd();
+            string source = options == DocumentationOptions.WriteSampleDocumentation
+                ? @"/// <summary>
+/// Some class.
+/// </summary>
+"
+                : string.Empty;
 
-            await this.VerifyCSharpDiagnosticAsync(gen, expectedDiagnosticId, CancellationToken.None).ConfigureAwait(false);
+            source += string.Join(" ", modifiers) + @" class
+TestClass
+{
+}";
+
+            if (!string.IsNullOrEmpty(expectedDiagnosticId))
+            {
+                await this.VerifyCSharpDiagnosticAsync(source, this.CSharpDiagnostic(expectedDiagnosticId).WithLocation(2, 1), CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await this.VerifyCSharpDiagnosticAsync(source, EmptyDiagnosticResults, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         [Theory]
@@ -57,11 +75,29 @@
         [InlineData(DocumentationOptions.OmitSampleDocumentation, new[] { "internal" }, DiagnosticIdInternal)]
         public async Task TestEnumAsync(DocumentationOptions options, string[] modifiers, string expectedDiagnosticId)
         {
-            var gen = new DocumentationRuleTestSampleCodeBuilder();
-            gen.WriteEnumStart("TestEnum", options, ExpectedResult.Diagnostic, modifiers);
-            gen.WriteBlockEnd();
+            string source = options == DocumentationOptions.WriteSampleDocumentation
+                ? @"/// <summary>
+/// Test enum.
+/// </summary>
+"
+                : string.Empty;
 
-            await this.VerifyCSharpDiagnosticAsync(gen, expectedDiagnosticId, CancellationToken.None).ConfigureAwait(false);
+            source += string.Join(" ", modifiers) + @" enum
+TestEnum
+{
+    SomeValue
+}";
+
+            if (!string.IsNullOrEmpty(expectedDiagnosticId))
+            {
+                await this.VerifyCSharpDiagnosticAsync(source, this.CSharpDiagnostic(expectedDiagnosticId).WithLocation(2, 1), CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await this.VerifyCSharpDiagnosticAsync(source, EmptyDiagnosticResults, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         [Theory]
@@ -71,13 +107,33 @@
         [InlineData(DocumentationOptions.OmitSampleDocumentation, new[] { "internal" }, new[] { "public" }, DiagnosticIdInternal)]
         public async Task TestNestedClassAsync(DocumentationOptions options, string[] parentModifiers, string[] modifiers, string expectedDiagnosticId)
         {
-            var gen = new DocumentationRuleTestSampleCodeBuilder();
-            gen.WriteClassStart("ParentClass", DocumentationOptions.WriteSampleDocumentation, ExpectedResult.NoDiagnostic, parentModifiers);
-            gen.WriteClassStart("TestClass", options, ExpectedResult.Diagnostic, modifiers);
-            gen.WriteBlockEnd();
-            gen.WriteBlockEnd();
+            string classDocumentation = @"/// <summary>
+/// Some class.
+/// </summary>
+";
 
-            await this.VerifyCSharpDiagnosticAsync(gen, expectedDiagnosticId, CancellationToken.None).ConfigureAwait(false);
+            string innerDocumentation = options == DocumentationOptions.WriteSampleDocumentation
+                ? classDocumentation
+                : string.Empty;
+
+            string source = classDocumentation + string.Join(" ", parentModifiers) + @" class OuterClass
+{
+" + innerDocumentation + @"    " + string.Join(" ", modifiers) + @" class
+TestClass
+    {
+    }
+}";
+
+            if (!string.IsNullOrEmpty(expectedDiagnosticId))
+            {
+                await this.VerifyCSharpDiagnosticAsync(source, this.CSharpDiagnostic(expectedDiagnosticId).WithLocation(7, 1), CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await this.VerifyCSharpDiagnosticAsync(source, EmptyDiagnosticResults, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         [Theory]
