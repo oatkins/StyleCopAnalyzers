@@ -131,6 +131,7 @@ namespace StyleCopTester
                 if (args.Contains("/fixall"))
                 {
                     await TestFixAllAsync(stopwatch, solution, diagnostics, cancellationToken).ConfigureAwait(true);
+                    workspace.TryApplyChanges(workspace.CurrentSolution);
                 }
             }
         }
@@ -152,13 +153,21 @@ namespace StyleCopTester
 
             Console.WriteLine("Calculating changes");
 
+            var workspace = solution.Workspace;
+
             foreach (var fix in equivalenceGroups)
             {
                 try
                 {
                     stopwatch.Restart();
                     Console.WriteLine($"Calculating fix for {fix.CodeFixEquivalenceKey} using {fix.FixAllProvider} for {fix.NumberOfDiagnostics} instances.");
-                    await fix.GetOperationsAsync(cancellationToken).ConfigureAwait(true);
+                    var fixes = await fix.GetOperationsAsync(cancellationToken).ConfigureAwait(true);
+
+                    foreach (var f in fixes)
+                    {
+                        f.Apply(workspace, cancellationToken);
+                    }
+
                     WriteLine($"Calculating changes completed in {stopwatch.ElapsedMilliseconds}ms. This is {fix.NumberOfDiagnostics / stopwatch.Elapsed.TotalSeconds:0.000} instances/second.", ConsoleColor.Yellow);
                 }
                 catch (Exception ex)
