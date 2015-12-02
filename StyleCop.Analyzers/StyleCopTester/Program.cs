@@ -75,7 +75,14 @@ namespace StyleCopTester
                     return;
                 }
 
-                MSBuildWorkspace workspace = MSBuildWorkspace.Create();
+                var properties = new Dictionary<string, string>()
+                {
+                    { "CheckForSystemRuntimeDependency", "true" },
+                    { "DesignTimeBuild", "true" },
+                    { "BuildingInsideVisualStudio", "true" }
+                };
+
+                MSBuildWorkspace workspace = MSBuildWorkspace.Create(properties);
                 string solutionPath = args.SingleOrDefault(i => !i.StartsWith("/", StringComparison.Ordinal));
                 Solution solution = workspace.OpenSolutionAsync(solutionPath, cancellationToken).Result;
 
