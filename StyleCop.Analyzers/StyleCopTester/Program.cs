@@ -8,6 +8,7 @@ namespace StyleCopTester
     using System.Collections.Generic;
     using System.Collections.Immutable;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Reflection;
     using System.Text;
@@ -19,7 +20,6 @@ namespace StyleCopTester
     using Microsoft.CodeAnalysis.CodeFixes;
     using Microsoft.CodeAnalysis.Diagnostics;
     using Microsoft.CodeAnalysis.MSBuild;
-    using Microsoft.CodeAnalysis.Text;
     using StyleCop.Analyzers.Helpers;
     using File = System.IO.File;
     using Path = System.IO.Path;
@@ -63,6 +63,9 @@ namespace StyleCopTester
             {
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
+
+            Console.WriteLine("Done!");
+            Console.ReadKey();
         }
 
         private static async Task MainAsync(string[] args, CancellationToken cancellationToken)
@@ -95,9 +98,21 @@ namespace StyleCopTester
                     return;
                 }
 
-                MSBuildWorkspace workspace = MSBuildWorkspace.Create();
+                var properties = new Dictionary<string, string>()
+                {
+                    ////["CheckForSystemRuntimeDependency"] = "false",
+                    ////["DesignTimeBuild"] = "false",
+                    ////["BuildingInsideVisualStudio"] = "false"
+                };
+
+                MSBuildWorkspace workspace = MSBuildWorkspace.Create(properties);
+
                 string solutionPath = args.SingleOrDefault(i => !i.StartsWith("/", StringComparison.Ordinal));
                 Solution solution = await workspace.OpenSolutionAsync(solutionPath, cancellationToken).ConfigureAwait(false);
+
+                Console.WriteLine("Adding generated files.");
+
+                solution = AddGeneratedFiles(solution);
 
                 Console.WriteLine($"Loaded solution in {stopwatch.ElapsedMilliseconds}ms");
 
@@ -155,6 +170,40 @@ namespace StyleCopTester
                     await TestFixAllAsync(stopwatch, solution, diagnostics, applyChanges, cancellationToken).ConfigureAwait(true);
                 }
             }
+        }
+
+        private static Solution AddGeneratedFiles(Solution solution)
+        {
+            string modelsFolder;
+            if (solution.FilePath.Contains(".Client"))
+            {
+                modelsFolder = @"c:\src\Admin\build\Models\client\";
+            }
+            else
+            {
+                modelsFolder = @"c:\src\Admin\build\Models\server\";
+            }
+
+            var s = solution;
+
+            foreach (var projectId in s.ProjectIds)
+            {
+                var project = s.GetProject(projectId);
+
+                string modelsPath = Path.Combine(modelsFolder, project.Name);
+                if (Directory.Exists(modelsPath))
+                {
+                    var generatedFiles = Directory.EnumerateFiles(modelsPath, "*.g.cs", SearchOption.AllDirectories);
+                    foreach (var f in generatedFiles)
+                    {
+                        project = project.AddDocument(Path.GetFileNameWithoutExtension(f) + ".g", File.ReadAllText(f)).Project;
+                    }
+
+                    s = project.Solution;
+                }
+            }
+
+            return s;
         }
 
         private static void WriteDiagnosticResults(ImmutableArray<Tuple<ProjectId, Diagnostic>> diagnostics, string fileName)

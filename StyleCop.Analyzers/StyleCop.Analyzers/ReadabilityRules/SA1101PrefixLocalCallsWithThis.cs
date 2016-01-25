@@ -82,55 +82,55 @@ namespace StyleCop.Analyzers.ReadabilityRules
         {
             switch (context.Node?.Parent?.Kind() ?? SyntaxKind.None)
             {
-            case SyntaxKind.SimpleMemberAccessExpression:
-                // this is handled separately
-                return;
-
-            case SyntaxKind.PointerMemberAccessExpression:
-                // this doesn't need to be handled
-                return;
-
-            case SyntaxKind.QualifiedCref:
-            case SyntaxKind.NameMemberCref:
-                // documentation comments don't use 'this.'
-                return;
-
-            case SyntaxKind.SimpleAssignmentExpression:
-                if (((AssignmentExpressionSyntax)context.Node.Parent).Left == context.Node
-                    && (context.Node.Parent.Parent?.IsKind(SyntaxKind.ObjectInitializerExpression) ?? true))
-                {
-                    /* Handle 'X' in:
-                     *   new TypeName() { X = 3 }
-                     */
+                case SyntaxKind.SimpleMemberAccessExpression:
+                    // this is handled separately
                     return;
-                }
 
-                break;
+                case SyntaxKind.PointerMemberAccessExpression:
+                    // this doesn't need to be handled
+                    return;
 
-            case SyntaxKind.NameEquals:
-                if (((NameEqualsSyntax)context.Node.Parent).Name != context.Node)
-                {
+                case SyntaxKind.QualifiedCref:
+                case SyntaxKind.NameMemberCref:
+                    // documentation comments don't use 'this.'
+                    return;
+
+                case SyntaxKind.SimpleAssignmentExpression:
+                    if (((AssignmentExpressionSyntax)context.Node.Parent).Left == context.Node
+                        && (context.Node.Parent.Parent?.IsKind(SyntaxKind.ObjectInitializerExpression) ?? true))
+                    {
+                        /* Handle 'X' in:
+                         *   new TypeName() { X = 3 }
+                         */
+                        return;
+                    }
+
                     break;
-                }
 
-                switch (context.Node?.Parent?.Parent?.Kind() ?? SyntaxKind.None)
-                {
-                case SyntaxKind.AttributeArgument:
-                case SyntaxKind.AnonymousObjectMemberDeclarator:
+                case SyntaxKind.NameEquals:
+                    if (((NameEqualsSyntax)context.Node.Parent).Name != context.Node)
+                    {
+                        break;
+                    }
+
+                    switch (context.Node?.Parent?.Parent?.Kind() ?? SyntaxKind.None)
+                    {
+                        case SyntaxKind.AttributeArgument:
+                        case SyntaxKind.AnonymousObjectMemberDeclarator:
+                            return;
+
+                        default:
+                            break;
+                    }
+
+                    break;
+
+                case SyntaxKind.MemberBindingExpression:
+                    // this doesn't need to be handled
                     return;
 
                 default:
                     break;
-                }
-
-                break;
-
-            case SyntaxKind.MemberBindingExpression:
-                // this doesn't need to be handled
-                return;
-
-            default:
-                break;
             }
 
             HandleIdentifierNameImpl(context, (SimpleNameSyntax)context.Node);
@@ -196,17 +196,20 @@ namespace StyleCop.Analyzers.ReadabilityRules
                 {
                     var memberAccessSymbol = context.SemanticModel.GetSymbolInfo(nameExpression.Parent, context.CancellationToken).Symbol;
 
-                    switch (memberAccessSymbol.Kind)
+                    if (memberAccessSymbol != null)
                     {
-                        case SymbolKind.Field:
-                        case SymbolKind.Method:
-                        case SymbolKind.Property:
-                            if (memberAccessSymbol.IsStatic && (memberAccessSymbol.ContainingType.Name == symbol.Name))
-                            {
-                                return;
-                            }
+                        switch (memberAccessSymbol.Kind)
+                        {
+                            case SymbolKind.Field:
+                            case SymbolKind.Method:
+                            case SymbolKind.Property:
+                                if (memberAccessSymbol.IsStatic && (memberAccessSymbol.ContainingType.Name == symbol.Name))
+                                {
+                                    return;
+                                }
 
-                            break;
+                                break;
+                        }
                     }
                 }
 
@@ -223,39 +226,39 @@ namespace StyleCop.Analyzers.ReadabilityRules
             {
                 switch (node.Kind())
                 {
-                case SyntaxKind.ClassDeclaration:
-                case SyntaxKind.InterfaceDeclaration:
-                case SyntaxKind.StructDeclaration:
-                case SyntaxKind.DelegateDeclaration:
-                case SyntaxKind.EnumDeclaration:
-                case SyntaxKind.NamespaceDeclaration:
-                    return false;
+                    case SyntaxKind.ClassDeclaration:
+                    case SyntaxKind.InterfaceDeclaration:
+                    case SyntaxKind.StructDeclaration:
+                    case SyntaxKind.DelegateDeclaration:
+                    case SyntaxKind.EnumDeclaration:
+                    case SyntaxKind.NamespaceDeclaration:
+                        return false;
 
-                case SyntaxKind.FieldDeclaration:
-                case SyntaxKind.EventFieldDeclaration:
-                    return false;
+                    case SyntaxKind.FieldDeclaration:
+                    case SyntaxKind.EventFieldDeclaration:
+                        return false;
 
-                case SyntaxKind.MultiLineDocumentationCommentTrivia:
-                case SyntaxKind.SingleLineDocumentationCommentTrivia:
-                    return false;
+                    case SyntaxKind.MultiLineDocumentationCommentTrivia:
+                    case SyntaxKind.SingleLineDocumentationCommentTrivia:
+                        return false;
 
-                case SyntaxKind.EventDeclaration:
-                case SyntaxKind.PropertyDeclaration:
-                case SyntaxKind.IndexerDeclaration:
-                    BasePropertyDeclarationSyntax basePropertySyntax = (BasePropertyDeclarationSyntax)node;
-                    return !basePropertySyntax.Modifiers.Any(SyntaxKind.StaticKeyword);
+                    case SyntaxKind.EventDeclaration:
+                    case SyntaxKind.PropertyDeclaration:
+                    case SyntaxKind.IndexerDeclaration:
+                        BasePropertyDeclarationSyntax basePropertySyntax = (BasePropertyDeclarationSyntax)node;
+                        return !basePropertySyntax.Modifiers.Any(SyntaxKind.StaticKeyword);
 
-                case SyntaxKind.ConstructorDeclaration:
-                case SyntaxKind.DestructorDeclaration:
-                case SyntaxKind.MethodDeclaration:
-                    BaseMethodDeclarationSyntax baseMethodSyntax = (BaseMethodDeclarationSyntax)node;
-                    return !baseMethodSyntax.Modifiers.Any(SyntaxKind.StaticKeyword);
+                    case SyntaxKind.ConstructorDeclaration:
+                    case SyntaxKind.DestructorDeclaration:
+                    case SyntaxKind.MethodDeclaration:
+                        BaseMethodDeclarationSyntax baseMethodSyntax = (BaseMethodDeclarationSyntax)node;
+                        return !baseMethodSyntax.Modifiers.Any(SyntaxKind.StaticKeyword);
 
-                case SyntaxKind.Attribute:
-                    return false;
+                    case SyntaxKind.Attribute:
+                        return false;
 
-                default:
-                    continue;
+                    default:
+                        continue;
                 }
             }
 
